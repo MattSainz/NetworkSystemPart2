@@ -1,3 +1,8 @@
+/**
+ * Simulates a network for use in this programming assignment
+ * Sends application traffic over udp connection and listens for
+ * traffic over same udp connection
+ */
 class Network
 {
   public:
