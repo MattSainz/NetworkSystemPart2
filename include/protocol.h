@@ -1,22 +1,15 @@
+#ifndef PROTOCOL
+#define PROTOCOL
+
 #include "../network_libs/message.h"
+
 
 class Protocol
 {
 
-  public:
-   /**
-    * Each protocol class must define a way to send a
-    * message over a network
-    */
-    virtual void net_send();
-
-   /**
-    * Each protocol class must define a way to receive a
-    * message over a network
-    */
-    virtual void net_rec();
-
-  private:
+private:
+  const int len_size= 3;
+  protected:
 
     /*
      * defines the different sizes of headers for the
@@ -34,10 +27,20 @@ class Protocol
     int net_protocols[9]= {-1,8,12,4,4,8,8,12,8};
 
     /*
+     * nothing below ethernet
+     * ip -> ethernet
+     * udp/tcp -> ip
+     * ftp/telnet -> tcp
+     * RDP/DNS -> udp
+     */
+    int lower_mappings[9]= {-1,0,1,2,2,3,3,4,4};
+
+    /*
      * contains all the information a message needs while
      * it moves up and down the network stack
      */
-    typedef struct{
+    typedef struct
+    {
       int hlp;
       Message* other_info;
       int data_len;
@@ -48,13 +51,28 @@ class Protocol
      * higher level protocol
      * @return ProtoMsg contains the processed messaged
      */
-    ProtoMsg* up(ProtoMsg* to_process);
+    int ethernet_up(Message* to_process);
+    int ip_up(Message* to_process);
+    int udp_up(Message* to_process);
+    int tcp_up(Message* to_process);
+    int ftp_up(Message* to_process);
+    int tel_up(Message* to_process);
+    int rdp_up(Message* to_process);
+    int dns_up(Message* to_process);
 
     /**
      * Adds the correct header from a message from a message and determines the
      * next protocol
      * @return ProtoMsg contains the processed messaged
      */
-    ProtoMsg* down(ProtoMsg* to_process);
-
+    void ethernet_down(Message* to_process);
+    void ip_down(Message* to_process);
+    void udp_down(Message* to_process);
+    void tcp_down(Message* to_process);
+    void ftp_down(Message* to_process);
+    void tel_down(Message* to_process);
+    void rdp_down(Message* to_process);
+    void dns_down(Message* to_process);
 };
+
+#endif
