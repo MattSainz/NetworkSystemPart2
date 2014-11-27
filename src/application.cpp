@@ -7,11 +7,13 @@ Network* Application::b;
 
 Application::Application(int mode)
 {
+  int pa = (rand()%5000) + 1000;
+  int pb = (rand()%5000) + 1000;
   switch (mode)
   {
     case 0:
-      a = new Network(0, 5006, 5007);
-      b = new Network(0, 5007, 5006);
+      a = new Network(0, pa, pb);
+      b = new Network(0, pb, pa);
       break;
     case 1:
       break;
@@ -64,7 +66,8 @@ void Application::gen_apps()
   pthread_t tmp;
   for(int i = 1; i <= 4; i++)
   {
-    pthread_create(&tmp, NULL, Application::app_thread_a, (void*) i);
+    cout << i+4 << endl;
+    pthread_create(&tmp, NULL, Application::app_thread_a, (void*) i+4);
     pthread_create(&tmp, NULL, Application::app_thread_b, (void*) i+4);
   }
 

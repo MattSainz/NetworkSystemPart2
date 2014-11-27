@@ -2,6 +2,7 @@
 #define NETWORK_H
 
 #include <iostream>
+#include <fstream>
 #include <sys/socket.h>
 #include <semaphore.h>
 #include <mutex>
@@ -36,7 +37,7 @@ class Network
      * @param id specifies the id of the protocol to be used
      * @msg contains the message to be sent down the stack
      */
-    static void my_send(int id, char* msg);
+    void my_send(int id, char* msg);
 
    /**
     * Listens for incoming messages from other host and
@@ -44,6 +45,8 @@ class Network
     * @return char* the message to be read out by the application
     */
     static char* my_receive();
+
+    static void threadPush(Protocol::ProtoMsg* new_msg);
 
   private:
 
@@ -53,9 +56,11 @@ class Network
       int mode;
     }ThreadParam;
 
+    typedef Protocol::ProtoMsg ProtoMsg;
+
     static sem_t send_queue_sem;
 
-    static std::queue<Message*> to_send;
+    static std::queue<ProtoMsg*> to_send;
 
     static pthread_mutex_t queue_lock;
 
@@ -73,9 +78,8 @@ class Network
 
     static void* udp_send(void* param);
 
-    static void threadPush(Message* new_msg);
 
-    static Message* threadPop();
+    static ProtoMsg* threadPop();
 
     void spawn_threads();
 
