@@ -8,6 +8,8 @@ ProcessPerProtocol::my_fd* ProcessPerProtocol::send_fd[9];
 
 ProcessPerProtocol::my_fd* ProcessPerProtocol::receive_fd[9];
 
+pthread_mutex_t ProcessPerProtocol::write_locks[8];
+
 ProcessPerProtocol::ProcessPerProtocol()
 {
   up_fun = new FP[9];
@@ -128,8 +130,6 @@ void *ProcessPerProtocol::pipe_recv(void *arg)
       read(read_fd, (char*)tmp, sizeof(ProtoMsg));
 
       (*my_fun)(tmp);
-
-
 
       if( tmp->hlp != 0)
       {

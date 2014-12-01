@@ -42,20 +42,25 @@ void *Application::app_thread_a(void *param)
   for(int i = 0; i < 100; i++)
   {
     a->my_send(protocol_id,(char*) msg[i%2]);
+    nanosleep(&t, NULL);
   }
 
-  nanosleep(&t, NULL);
 
   pthread_exit(0);
 }
 
 void *Application::app_thread_b(void *param)
 {
+  struct timespec t;
+  t.tv_sec = 0;
+  t.tv_nsec = 20;
+
   int protocol_id = *((int*)(&param));
   const char* msg[2] = {"bax","lolz"};
   for(int i = 0; i < 100; i++)
   {
     b->my_send(protocol_id, (char*) msg[i%2]);
+    nanosleep(&t, NULL);
   }
 
   pthread_exit(0);

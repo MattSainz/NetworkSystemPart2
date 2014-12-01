@@ -33,6 +33,8 @@ class ProcessPerProtocol : public Protocol
       int write_fd;
     }my_fd;
 
+    static pthread_mutex_t write_locks[8] = {PTHREAD_MUTEX_INITIALIZER};
+
     static my_fd* send_fd[];
 
     static my_fd* receive_fd[];
