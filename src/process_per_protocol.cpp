@@ -8,31 +8,17 @@ ProcessPerProtocol::my_fd* ProcessPerProtocol::send_fd[9];
 
 ProcessPerProtocol::my_fd* ProcessPerProtocol::receive_fd[9];
 
-pthread_mutex_t ProcessPerProtocol::write_locks[8];
+pthread_mutex_t ProcessPerProtocol::write_locks[17];
+
+int ProcessPerProtocol::count[9] = {0};
 
 ProcessPerProtocol::ProcessPerProtocol()
 {
-  up_fun = new FP[9];
-  up_fun[0] = nullptr;
-  up_fun[1] = &ethernet_up;
-  up_fun[2] = &ip_up;
-  up_fun[3] = &tcp_up;
-  up_fun[4] = &udp_up;
-  up_fun[5] = &ftp_up;
-  up_fun[6] = &tel_up;
-  up_fun[7] = &rdp_up;
-  up_fun[8] = &dns_up;
-
-  down_fun    = new FP[9];
-  down_fun[0] = nullptr;
-  down_fun[1] = &ethernet_down;
-  down_fun[2] = &ip_down;
-  down_fun[3] = &tcp_down;
-  down_fun[4] = &udp_down;
-  down_fun[5] = &ftp_down;
-  down_fun[6] = &tel_down;
-  down_fun[7] = &rdp_down;
-  down_fun[8] = &dns_down;
+  //id's for protocols start at 1
+  for(int i = 1; i < 17; i++)
+  {
+    write_locks[i] = PTHREAD_MUTEX_INITIALIZER;
+  }
 
   init_protocol_threads();
   sleep(1);
@@ -41,21 +27,25 @@ ProcessPerProtocol::ProcessPerProtocol()
 
 ProcessPerProtocol::~ProcessPerProtocol()
 {
-
+  sleep(2);
+  //TODO wait until done
 }
 
-Protocol::ProtoMsg* ProcessPerProtocol::net_send(Protocol::ProtoMsg* msg)
+void ProcessPerProtocol::net_send(Protocol::ProtoMsg* msg)
 {
-
   int w_fd = send_fd[msg->hlp]->write_fd;
+  pthread_mutex_lock(&write_locks[w_fd]);
   write(w_fd,(char*)msg, sizeof(ProtoMsg));
-  return msg;
+  pthread_mutex_unlock(&write_locks[w_fd]);
+  delete msg;
 }
 
 void ProcessPerProtocol::net_rec(Protocol::ProtoMsg* msg)
 {
   int w_fd = receive_fd[msg->hlp]->write_fd;
+  pthread_mutex_lock(&write_locks[w_fd+8]);
   write(w_fd,(char*)msg,sizeof(ProtoMsg));
+  pthread_mutex_unlock(&write_locks[w_fd+8]);
 }
 
 //going down
@@ -69,7 +59,7 @@ void *ProcessPerProtocol::pipe_send(void *arg)
 
   fd_set readset;
   int err = 0, size = 0;
-  char* data = new char[100];
+  char* data = new char[512];
 
   ProtoMsg* tmp;
   while(1) {
@@ -86,14 +76,13 @@ void *ProcessPerProtocol::pipe_send(void *arg)
 
       read(read_fd, (char*)tmp, sizeof(ProtoMsg));
 
-      (*my_fun)(tmp);
-
-      tmp->other_info->msgFlat(data);
+      (*my_fun)((void*)tmp);
 
       if( tmp->hlp != 0)
       {
-        //TODO add mutex
+        pthread_mutex_lock(&write_locks[tmp->hlp]);
         write(send_fd[tmp->hlp]->write_fd,(char*)tmp, sizeof(ProtoMsg));
+        pthread_mutex_unlock(&write_locks[tmp->hlp]);
       }
 
     }
@@ -112,7 +101,7 @@ void *ProcessPerProtocol::pipe_recv(void *arg)
 
   fd_set readset;
   int err = 0, size = 0;
-  char* data = new char[100];
+  char* data = new char[512];
 
   ProtoMsg* tmp;
   while(1) {
@@ -129,18 +118,21 @@ void *ProcessPerProtocol::pipe_recv(void *arg)
 
       read(read_fd, (char*)tmp, sizeof(ProtoMsg));
 
-      (*my_fun)(tmp);
+      (*my_fun)((void*)tmp);
 
-      if( tmp->hlp != 0)
+      if( tmp->hlp > 0)
       {
-        //TODO add mutex
+        pthread_mutex_lock(&write_locks[tmp->hlp+8]);
         write(receive_fd[tmp->hlp]->write_fd,(char*)tmp, sizeof(ProtoMsg));
+        pthread_mutex_unlock(&write_locks[tmp->hlp+8]);
       }
       else
       {
         tmp->other_info->msgFlat(data);
-        cout << data << " from " << id << endl;
+        cout << "Recived: " << data << endl;
       }
+
+      delete tmp;
 
     }
   }
@@ -178,7 +170,7 @@ void ProcessPerProtocol::init_protocol_threads()
 
 char* msg_to_str(Message* msg)
 {
-  char* buf = new char[100];
+  char* buf = new char[512];
   msg->msgFlat(buf);
   return buf;
 }

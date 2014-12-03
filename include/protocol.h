@@ -8,17 +8,17 @@ class Protocol
 {
 
   public:
+    Protocol();
       /*
      * contains all the information a message needs while
      * it moves up and down the network stack
      */
-    typedef struct
-    {
+    typedef struct {
       int hlp;
       Message* other_info;
     }ProtoMsg;
 
-    typedef void (*FP)(Protocol::ProtoMsg*);
+    typedef void (*FP)(void*);
 
     static FP* up_fun;
 
@@ -27,6 +27,8 @@ class Protocol
   protected:
 
     const int len_size= 3;
+    static const char DATA_CHAR;
+
     static char* get_msg_len(int len);
 
     /*
@@ -50,29 +52,28 @@ class Protocol
      * higher level protocol
      * @return ProtoMsg contains the processed messaged
      */
-     static void ethernet_up(ProtoMsg* to_process);
-     static void ip_up(ProtoMsg* to_process);
-     static void udp_up(ProtoMsg* to_process);
-     static void tcp_up(ProtoMsg* to_process);
-     static void ftp_up(ProtoMsg* to_process);
-     static void tel_up(ProtoMsg* to_process);
-     static void rdp_up(ProtoMsg* to_process);
-     static void dns_up(ProtoMsg* to_process);
+     static void ethernet_up(void *to_process);
+     static void ip_up(void * to_process);
+     static void udp_up(void* to_process);
+     static void tcp_up(void* to_process);
+     static void ftp_up(void* to_process);
+     static void tel_up(void* to_process);
+     static void rdp_up(void *to_process);
+     static void dns_up(void* to_process);
 
     /**
      * Adds the correct header from a message from a message and determines the
      * next protocol
      * @return ProtoMsg contains the processed messaged
      */
-     static void ethernet_down(ProtoMsg* to_process);
-     static void ip_down(ProtoMsg* to_process);
-     static void udp_down(ProtoMsg* to_process);
-     static void tcp_down(ProtoMsg* to_process);
-     static void ftp_down(ProtoMsg* to_process);
-     static void tel_down(ProtoMsg* to_process);
-     static void rdp_down(ProtoMsg* to_process);
-     static void dns_down(ProtoMsg* to_process);
-
+     static void ethernet_down(void* to_process);
+     static void ip_down(void* to_process);
+     static void udp_down(void* to_process);
+     static void tcp_down(void* to_process);
+     static void ftp_down(void* to_process);
+     static void tel_down(void* to_process);
+     static void rdp_down(void* to_process);
+     static void dns_down(void* to_process);
 
 };
 

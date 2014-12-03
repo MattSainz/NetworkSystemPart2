@@ -19,12 +19,14 @@ class ProcessPerProtocol : public Protocol
      * Take a message and send it down
      * returns lowest layer message
      */
-    ProtoMsg* net_send(ProtoMsg* msg);
+    void net_send(ProtoMsg* msg);
 
    /*
     * Take a message and send it up
     */
     void net_rec(ProtoMsg* msg);
+
+    static int count[9];
 
   private:
 
@@ -33,7 +35,7 @@ class ProcessPerProtocol : public Protocol
       int write_fd;
     }my_fd;
 
-    static pthread_mutex_t write_locks[8] = {PTHREAD_MUTEX_INITIALIZER};
+    static pthread_mutex_t write_locks[17];
 
     static my_fd* send_fd[];
 

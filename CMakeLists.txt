@@ -6,6 +6,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 set(SOURCE_FILES
     network_libs/message.h
     network_libs/message.cpp
+    network_libs/threadpool.cpp
+    network_libs/threadpool.h
     include/application.h
     include/network.h
     include/process_per_msg.h

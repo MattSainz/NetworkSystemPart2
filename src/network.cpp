@@ -6,6 +6,7 @@ using namespace std;
 std::queue<Protocol::ProtoMsg*> Network::to_send;
 sem_t Network::send_queue_sem;
 pthread_mutex_t Network::queue_lock;
+pthread_mutex_t Network::send_lock;
 pthread_barrier_t Network::threads_ready;
 
 Network::Network(int mode, int out, int in)
@@ -21,11 +22,13 @@ Network::Network(int mode, int out, int in)
       break;
     case 1:
       my_proto = new ProcessPerMsg();
+      break;
     default:
       exit(-1);
   }
 
   queue_lock = PTHREAD_MUTEX_INITIALIZER;
+  send_lock = PTHREAD_MUTEX_INITIALIZER;
   pthread_barrier_init(&threads_ready, NULL, 3);
   sem_init(&send_queue_sem, 0, 0);
 
@@ -34,20 +37,28 @@ Network::Network(int mode, int out, int in)
 
 Network::~Network()
 {
-  while(!to_send.empty());
+  //sleep(1);
+  //TODO fix
 }
 
 void Network::my_send(int id, char* msg)
 {
+  pthread_mutex_lock(&send_lock);
   ProtoMsg* new_p = new ProtoMsg;
   new_p->hlp = id;
-  Message* new_msg = new Message(msg,strlen(msg));
+  Message* new_msg = new Message(msg,strlen(msg)+1);
   new_p->other_info = new_msg;
   if(my_mode == 0)
   {
     ProcessPerProtocol* ppp = (ProcessPerProtocol*) my_proto;
     ppp->net_send(new_p);
   }
+  else
+  {
+    ProcessPerMsg* ppm = (ProcessPerMsg*) my_proto;
+    ppm->net_send(new_p);
+  }
+  pthread_mutex_unlock(&send_lock);
 }
 
 char* Network::my_receive()
@@ -58,7 +69,11 @@ char* Network::my_receive()
 //TODO split up udp connection from other code
 void* Network::udp_rcv(void* param)
 {
-  char buf[1024];
+  cout << "Ending\n";
+  char buf[256];
+
+  struct timespec t;
+  t.tv_sec = 0;
 
   ThreadParam* local = (ThreadParam*) param;
 
@@ -83,34 +98,50 @@ void* Network::udp_rcv(void* param)
     exit(1);
   }//attempt to bind sock
 
+  ProtoMsg* tmp;
   pthread_barrier_wait(&threads_ready);
+  //todo figure out how todo cleaner with virtual functions
   if(0 == local->mode)
   {
-    ProcessPerProtocol* ppp = (ProcessPerProtocol*) local->my_protocol;
-    ProtoMsg* tmp;
-    char* other_info_c;
+    ProcessPerProtocol* p = (ProcessPerProtocol*) local->my_protocol;
     while(1)
     {
-      bzero(buf,1024);
-      recvfrom(sock, buf, 1024, 0, (struct sockaddr *)&other, &len);
+      t.tv_nsec = rand()%100 + 100;
+      bzero(buf,256);
+      recvfrom(sock, buf, 256, 0, (struct sockaddr *)&other, &len);
 
       tmp = new ProtoMsg;
       tmp->hlp = buf[0] - 48;
-      other_info_c = buf;
-      tmp->other_info = new Message(other_info_c, strlen(other_info_c));
+      tmp->other_info = new Message(buf, strlen(buf)+1);
 
-      ppp->net_rec( tmp );
+      p->net_rec( tmp );
+      nanosleep(&t, NULL);
     }
   }
   else
   {
-    //TODO
+    ProcessPerMsg* p = (ProcessPerMsg*) local->my_protocol;
+    while(1)
+    {
+      t.tv_nsec = rand()%100 + 100;
+      bzero(buf,256);
+      recvfrom(sock, buf, 256, 0, (struct sockaddr *)&other, &len);
+
+      tmp = new ProtoMsg;
+      tmp->hlp = buf[0] - 48;
+      tmp->other_info = new Message(buf, strlen(buf)+1);
+
+      p->net_rec( tmp );
+
+      nanosleep(&t, NULL);
+    }
   }
 
 }
 
 void* Network::udp_send(void* param)
 {
+
   ThreadParam* local = (ThreadParam*) param;
   struct sockaddr_in other;
   int s;
@@ -127,17 +158,16 @@ void* Network::udp_send(void* param)
   other.sin_addr.s_addr   = INADDR_ANY;
 
   pthread_barrier_wait(&threads_ready);
-  if( local->mode == 0)
+
+  while (1)
   {
-    while (1)
-    {
-      char* buf = new char[100];
 
-      threadPop()->other_info->msgFlat(buf);
+    char* buf = new char[512];
 
-      sendto(s, buf, sizeof(to_send), 0, (struct sockaddr *) &other, sizeof(other));
+    threadPop()->other_info->msgFlat(buf);
 
-    }
+    sendto(s, buf, strlen(buf), 0, (struct sockaddr *) &other, sizeof(other));
+
   }
 
 }
@@ -180,3 +210,4 @@ Protocol::ProtoMsg* Network::threadPop()
 
   return to_ret;
 }
+

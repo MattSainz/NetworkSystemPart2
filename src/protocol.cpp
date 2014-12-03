@@ -3,179 +3,232 @@
 
 Protocol::FP *Protocol::up_fun;
 Protocol::FP *Protocol::down_fun;
+const char Protocol::DATA_CHAR = '-';
 
-void Protocol::ethernet_up(ProtoMsg *to_process)
+Protocol::Protocol()
 {
-  to_process->other_info->msgStripHdr(4 + 8);
-  to_process->hlp = (int) to_process->other_info->msgStripHdr(1)[0] - '0';
+  up_fun = new FP[9];
+  up_fun[0] = nullptr;
+  up_fun[1] = &ethernet_up;
+  up_fun[2] = &ip_up;
+  up_fun[3] = &tcp_up;
+  up_fun[4] = &udp_up;
+  up_fun[5] = &ftp_up;
+  up_fun[6] = &tel_up;
+  up_fun[7] = &rdp_up;
+  up_fun[8] = &dns_up;
+
+  down_fun    = new FP[9];
+  down_fun[0] = nullptr;
+  down_fun[1] = &ethernet_down;
+  down_fun[2] = &ip_down;
+  down_fun[3] = &tcp_down;
+  down_fun[4] = &udp_down;
+  down_fun[5] = &ftp_down;
+  down_fun[6] = &tel_down;
+  down_fun[7] = &rdp_down;
+  down_fun[8] = &dns_down;
 }
 
-void Protocol::ip_up(ProtoMsg* to_process)
+void Protocol::ethernet_up(void *to_process)
 {
-  to_process->other_info->msgStripHdr(3 + 12);
-  to_process->hlp = (int) to_process->other_info->msgStripHdr(1)[0] - '0';
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  m->other_info->msgStripHdr(4 + 8);
+  m->hlp = (int) m->other_info->msgStripHdr(1)[0] - '0';
 }
 
-void Protocol::udp_up(ProtoMsg* to_process)
+void Protocol::ip_up(void* to_process)
 {
-  to_process->other_info->msgStripHdr(3 + 4);
-  to_process->hlp = (int) to_process->other_info->msgStripHdr(1)[0] - '0';
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  m->other_info->msgStripHdr(3 + 12);
+  m->hlp = (int) m->other_info->msgStripHdr(1)[0] - '0';
 }
 
-void Protocol::tcp_up(ProtoMsg* to_process)
+void Protocol::udp_up(void* to_process)
 {
-  to_process->other_info->msgStripHdr(3 + 4);
-  to_process->hlp = (int) to_process->other_info->msgStripHdr(1)[0] - '0';
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  m->other_info->msgStripHdr(3 + 4);
+  m->hlp = (int) m->other_info->msgStripHdr(1)[0] - '0';
 }
 
-void Protocol::ftp_up(ProtoMsg* to_process)
+void Protocol::tcp_up(void* to_process)
 {
-  to_process->hlp = 0;
-  to_process->other_info->msgStripHdr(3 + 8);
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  m->other_info->msgStripHdr(3 + 4);
+  m->hlp = (int) m->other_info->msgStripHdr(1)[0] - '0';
 }
 
-void Protocol::tel_up(ProtoMsg* to_process)
+void Protocol::ftp_up(void* to_process)
 {
-  to_process->hlp = 0;
-  to_process->other_info->msgStripHdr(3 + 8);
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  m->hlp = 0;
+  m->other_info->msgStripHdr(3 + 8);
 }
 
-void Protocol::rdp_up(ProtoMsg* to_process)
+void Protocol::tel_up(void* to_process)
 {
-  to_process->hlp = 0;
-  to_process->other_info->msgStripHdr(3 + 12);
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  m->hlp = 0;
+  m->other_info->msgStripHdr(3 + 8);
 }
 
-void Protocol::dns_up(ProtoMsg* to_process)
+void Protocol::rdp_up(void *to_process)
 {
-  to_process->hlp = 0;
-  to_process->other_info->msgStripHdr(3 + 8);
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  m->hlp = 0;
+  m->other_info->msgStripHdr(3 + 12);
 }
 
-void Protocol::ethernet_down(ProtoMsg *to_process) {
-  Message* my_msg = to_process->other_info;
+void Protocol::dns_up(void* to_process)
+{
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  m->hlp = 0;
+  m->other_info->msgStripHdr(3 + 8);
+}
+
+void Protocol::ethernet_down(void* to_process) {
+
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  Message* my_msg = m->other_info;
   int msg_len = (int) my_msg->msgLen();
   my_msg->msgAddHdr(get_msg_len(msg_len), 3);
 
   char* other_data = new char[8];
-  memset(other_data, '0', 8);
+  memset(other_data, DATA_CHAR, 8);
   my_msg->msgAddHdr(other_data, 8);
 
   char* hlp = new char[1];
-  hlp[0] = (char) to_process->hlp + 48;
+  hlp[0] = (char) m->hlp + 48;
   my_msg->msgAddHdr(hlp, 1);
-  Network::threadPush(to_process);
 
-  to_process->hlp = 0;
+  Network::threadPush(m);
+
+  m->hlp = 0;
+
 }
 
-void Protocol::ip_down(ProtoMsg* to_process) {
-  Message* my_msg = to_process->other_info;
+void Protocol::ip_down(void* to_process) {
+
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  Message* my_msg = m->other_info;
   int msg_len = (int) my_msg->msgLen();
   my_msg->msgAddHdr(get_msg_len(msg_len), 3);
 
   char* other_data = new char[12];
-  memset(other_data, '0', 12);
+  memset(other_data, DATA_CHAR, 12);
   my_msg->msgAddHdr(other_data, 12);
 
   char* hlp = new char[1];
-  hlp[0] = (char) to_process->hlp + 48;
+  hlp[0] = (char) m->hlp + 48;
   my_msg->msgAddHdr(hlp, 1);
-  to_process->hlp = 1;
+  m->hlp = 1;
+
 }
 
-void Protocol::udp_down(ProtoMsg* to_process) {
-  Message* my_msg = to_process->other_info;
+void Protocol::udp_down(void* to_process) {
+  ProtoMsg* m = (ProtoMsg*) to_process;
+
+  Message* my_msg = m->other_info;
   int msg_len = (int) my_msg->msgLen();
   my_msg->msgAddHdr(get_msg_len(msg_len), 3);
 
   char* other_data = new char[4];
-  memset(other_data, '0', 4);
+  memset(other_data, DATA_CHAR, 4);
   my_msg->msgAddHdr(other_data, 4);
 
   char* hlp = new char[1];
-  hlp[0] = (char) to_process->hlp + 48;
+  hlp[0] = (char) m->hlp + 48;
   my_msg->msgAddHdr(hlp, 1);
-  to_process->hlp = 2;
+  m->hlp = 2;
+
 }
 
-void Protocol::tcp_down(ProtoMsg* to_process) {
-  Message* my_msg = to_process->other_info;
+void Protocol::tcp_down(void* to_process) {
+  ProtoMsg* m = (ProtoMsg*) to_process;
+
+  Message* my_msg = m->other_info;
   int msg_len = (int) my_msg->msgLen();
   my_msg->msgAddHdr(get_msg_len(msg_len), 3);
 
   char* other_data = new char[4];
-  memset(other_data, '0', 4);
+  memset(other_data, DATA_CHAR, 4);
   my_msg->msgAddHdr(other_data, 4);
 
   char* hlp = new char[1];
-  hlp[0] = (char) to_process->hlp + 48;
+  hlp[0] = (char) m->hlp + 48;
   my_msg->msgAddHdr(hlp, 1);
 
-  to_process->hlp = 2;
+  m->hlp = 2;
+
 }
 
-void Protocol::ftp_down(ProtoMsg* to_process) {
-
-  Message* my_msg = to_process->other_info;
+void Protocol::ftp_down(void* to_process) {
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  Message* my_msg = m->other_info;
   int msg_len = (int) my_msg->msgLen();
   my_msg->msgAddHdr(get_msg_len(msg_len), 3);
 
   char* other_data = new char[8];
-  memset(other_data, '0', 8);
+  memset(other_data, DATA_CHAR, 8);
   my_msg->msgAddHdr(other_data, 8);
 
   char* hlp = new char[1];
-  hlp[0] = (char) to_process->hlp + 48;
+  hlp[0] = (char) m->hlp + 48;
   my_msg->msgAddHdr(hlp, 1);
 
-  to_process->hlp = 3;
+  m->hlp = 3;
+
 }
 
-void Protocol::tel_down(ProtoMsg* to_process) {
-  Message* my_msg = to_process->other_info;
+void Protocol::tel_down(void* to_process) {
+
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  Message* my_msg = m->other_info;
   int msg_len = (int) my_msg->msgLen();
   my_msg->msgAddHdr(get_msg_len(msg_len), 3);
 
   char* other_data = new char[8];
-  memset(other_data, '0', 8);
+  memset(other_data, DATA_CHAR, 8);
   my_msg->msgAddHdr(other_data, 8);
 
   char* hlp = new char[1];
-  hlp[0] = (char) to_process->hlp + 48;
+  hlp[0] = (char) m->hlp + 48;
   my_msg->msgAddHdr(hlp, 1);
-  to_process->hlp = 3;
+  m->hlp = 3;
+
 }
 
-void Protocol::rdp_down(ProtoMsg* to_process) {
-  Message* my_msg = to_process->other_info;
+void Protocol::rdp_down(void* to_process) {
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  Message* my_msg = m->other_info;
   int msg_len = (int) my_msg->msgLen();
   my_msg->msgAddHdr(get_msg_len(msg_len), 3);
 
   char* other_data = new char[12];
-  memset(other_data, '0', 12);
+  memset(other_data, DATA_CHAR, 12);
   my_msg->msgAddHdr(other_data, 12);
 
   char* hlp = new char[1];
-  hlp[0] = (char) to_process->hlp + 48;
+  hlp[0] = (char) m->hlp + 48;
   my_msg->msgAddHdr(hlp, 1);
 
-  to_process->hlp = 4;
+  m->hlp = 4;
 }
 
-void Protocol::dns_down(ProtoMsg* to_process) {
-  Message* my_msg = to_process->other_info;
+void Protocol::dns_down(void* to_process) {
+  ProtoMsg* m = (ProtoMsg*) to_process;
+  Message* my_msg = m->other_info;
   int msg_len = (int) my_msg->msgLen();
   my_msg->msgAddHdr(get_msg_len(msg_len), 3);
 
   char* other_data = new char[8];
-  memset(other_data, '0', 8);
+  memset(other_data, DATA_CHAR, 8);
   my_msg->msgAddHdr(other_data, 8);
 
   char* hlp = new char[1];
-  hlp[0] = (char) to_process->hlp + 48;
+  hlp[0] = (char) m->hlp + 48;
   my_msg->msgAddHdr(hlp, 1);
-  to_process->hlp = 4;
+  m->hlp = 4;
 }
 
 char* Protocol::get_msg_len(int len)
@@ -183,7 +236,8 @@ char* Protocol::get_msg_len(int len)
   int i;
   int digits = 0;
   for( i = len; i > 0; i/=10) digits++;
-  char* arr = new char[2];
+  char* arr = new char[3];
+  bzero(arr,3);
   memset(arr, '0', 2);
   digits = 0;
   for( i = len; i > 0; i/=10) arr[2 - digits++] = (char) i%10 + 48;

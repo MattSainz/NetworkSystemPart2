@@ -62,7 +62,11 @@ class Network
 
     static std::queue<ProtoMsg*> to_send;
 
+    static std::queue<ProtoMsg*> rec;
+
     static pthread_mutex_t queue_lock;
+
+    static pthread_mutex_t send_lock;
 
     static pthread_barrier_t threads_ready;
 
@@ -83,6 +87,7 @@ class Network
 
     void spawn_threads();
 
+  int *get_c();
 };
 
 #endif
