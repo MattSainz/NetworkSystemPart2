@@ -2,13 +2,15 @@
 #define PROTOCOL
 
 #include "../network_libs/message.h"
-
+#include <pthread.h>
+#include <mutex>
 
 class Protocol
 {
 
   public:
     Protocol();
+    ~Protocol();
       /*
      * contains all the information a message needs while
      * it moves up and down the network stack
@@ -74,6 +76,14 @@ class Protocol
      static void tel_down(void* to_process);
      static void rdp_down(void* to_process);
      static void dns_down(void* to_process);
+
+     static int processing;
+     static pthread_mutex_t mu;
+     static void am_processing();
+     static void not_processing();
+
+     static bool live;
+     static pthread_mutex_t live_mu;
 
 };
 

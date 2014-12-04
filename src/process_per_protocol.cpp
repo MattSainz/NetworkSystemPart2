@@ -1,6 +1,7 @@
 #include <iostream>
 #include <unistd.h>
 #include "../include/process_per_protocol.h"
+#include "../include/network.h"
 
 using namespace std;
 
@@ -10,6 +11,8 @@ ProcessPerProtocol::my_fd* ProcessPerProtocol::receive_fd[9];
 
 pthread_mutex_t ProcessPerProtocol::write_locks[17];
 
+pthread_barrier_t ProcessPerProtocol::threads_ready;
+
 int ProcessPerProtocol::count[9] = {0};
 
 ProcessPerProtocol::ProcessPerProtocol()
@@ -17,35 +20,56 @@ ProcessPerProtocol::ProcessPerProtocol()
   //id's for protocols start at 1
   for(int i = 1; i < 17; i++)
   {
-    write_locks[i] = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_init( &(write_locks[i]), NULL);
   }
-
+  pthread_barrier_init(&threads_ready, NULL, 17);
   init_protocol_threads();
-  sleep(1);
-  //TODO add bar
+  pthread_barrier_wait(&threads_ready);
+  pthread_barrier_destroy(&threads_ready);
 }
 
 ProcessPerProtocol::~ProcessPerProtocol()
 {
-  sleep(2);
-  //TODO wait until done
+  bool keep_going = true;
+  while(keep_going)
+  {
+    pthread_mutex_lock(&mu);
+    keep_going = (processing > 0);
+    pthread_mutex_unlock(&mu);
+  }
+
+  cout << "PPP is done " << endl;
 }
 
 void ProcessPerProtocol::net_send(Protocol::ProtoMsg* msg)
 {
+  struct timespec t;
+  t.tv_sec = 0;
+  t.tv_nsec = 100;
+
   int w_fd = send_fd[msg->hlp]->write_fd;
-  pthread_mutex_lock(&write_locks[w_fd]);
+  //pthread_mutex_lock(&write_locks[w_fd]);
   write(w_fd,(char*)msg, sizeof(ProtoMsg));
-  pthread_mutex_unlock(&write_locks[w_fd]);
+  //pthread_mutex_unlock(&write_locks[w_fd]);
+  am_processing();
   delete msg;
+
+  nanosleep(&t, NULL);
 }
 
 void ProcessPerProtocol::net_rec(Protocol::ProtoMsg* msg)
 {
+  struct timespec t;
+  t.tv_sec = 0;
+  t.tv_nsec = 100;
+
   int w_fd = receive_fd[msg->hlp]->write_fd;
-  pthread_mutex_lock(&write_locks[w_fd+8]);
+  //pthread_mutex_lock(&write_locks[w_fd+8]);
   write(w_fd,(char*)msg,sizeof(ProtoMsg));
-  pthread_mutex_unlock(&write_locks[w_fd+8]);
+  //pthread_mutex_unlock(&write_locks[w_fd+8]);
+  am_processing();
+
+  nanosleep(&t, NULL);
 }
 
 //going down
@@ -62,6 +86,8 @@ void *ProcessPerProtocol::pipe_send(void *arg)
   char* data = new char[512];
 
   ProtoMsg* tmp;
+
+  pthread_barrier_wait(&threads_ready);
   while(1) {
     // Initialize the set
     FD_ZERO(&readset);
@@ -80,9 +106,13 @@ void *ProcessPerProtocol::pipe_send(void *arg)
 
       if( tmp->hlp != 0)
       {
-        pthread_mutex_lock(&write_locks[tmp->hlp]);
+        //pthread_mutex_lock(&write_locks[tmp->hlp]);
         write(send_fd[tmp->hlp]->write_fd,(char*)tmp, sizeof(ProtoMsg));
-        pthread_mutex_unlock(&write_locks[tmp->hlp]);
+        //pthread_mutex_unlock(&write_locks[tmp->hlp]);
+      }
+      else
+      {
+        not_processing();
       }
 
     }
@@ -104,6 +134,8 @@ void *ProcessPerProtocol::pipe_recv(void *arg)
   char* data = new char[512];
 
   ProtoMsg* tmp;
+
+  pthread_barrier_wait(&threads_ready);
   while(1) {
     // Initialize the set
     FD_ZERO(&readset);
@@ -122,17 +154,16 @@ void *ProcessPerProtocol::pipe_recv(void *arg)
 
       if( tmp->hlp > 0)
       {
-        pthread_mutex_lock(&write_locks[tmp->hlp+8]);
+        //pthread_mutex_lock(&write_locks[tmp->hlp+8]);
         write(receive_fd[tmp->hlp]->write_fd,(char*)tmp, sizeof(ProtoMsg));
-        pthread_mutex_unlock(&write_locks[tmp->hlp+8]);
+        //pthread_mutex_unlock(&write_locks[tmp->hlp+8]);
       }
-      else
+      else if(tmp->hlp == 0)
       {
-        tmp->other_info->msgFlat(data);
-        cout << "Recived: " << data << endl;
+        tmp->hlp = id;
+        Network::deliverMsg(tmp);
+        not_processing();
       }
-
-      delete tmp;
 
     }
   }

@@ -3,6 +3,11 @@
 
 Protocol::FP *Protocol::up_fun;
 Protocol::FP *Protocol::down_fun;
+pthread_mutex_t Protocol::mu;
+pthread_mutex_t Protocol::live_mu;
+
+int Protocol::processing = 0;
+bool Protocol::live = true;
 const char Protocol::DATA_CHAR = '-';
 
 Protocol::Protocol()
@@ -28,6 +33,17 @@ Protocol::Protocol()
   down_fun[6] = &tel_down;
   down_fun[7] = &rdp_down;
   down_fun[8] = &dns_down;
+
+  pthread_mutex_init(&mu, NULL);
+  pthread_mutex_init(&live_mu, NULL);
+}
+
+Protocol::~Protocol()
+{
+  delete up_fun;
+  delete down_fun;
+  pthread_mutex_destroy(&mu);
+  pthread_mutex_destroy(&live_mu);
 }
 
 void Protocol::ethernet_up(void *to_process)
@@ -242,4 +258,18 @@ char* Protocol::get_msg_len(int len)
   digits = 0;
   for( i = len; i > 0; i/=10) arr[2 - digits++] = (char) i%10 + 48;
   return arr;
+}
+
+void Protocol::am_processing()
+{
+  pthread_mutex_lock(&mu);
+  processing++;
+  pthread_mutex_unlock(&mu);
+}
+
+void Protocol::not_processing()
+{
+  pthread_mutex_lock(&mu);
+  processing--;
+  pthread_mutex_unlock(&mu);
 }

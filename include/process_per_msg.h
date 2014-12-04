@@ -25,13 +25,16 @@ class ProcessPerMsg : public Protocol
 
     void init_threads();
 
+    static int total;
+
     const size_t POOL_SIZE = 25;
 
     static FP* send_fp;
     static FP* deliver_fp;
 
+    static pthread_mutex_t output_mu;
+
     //static sem_t send_queue_sem;
-    //static pthread_mutex_t send_mu;
     //static std::queue<ProtoMsg*> to_send;
 
     static ThreadPool* pool;
@@ -55,6 +58,9 @@ class ProcessPerMsg : public Protocol
     static void dns_send(void* msg);
 
     static void t_s(Message* m);
+
+
+
 
 };
 #endif

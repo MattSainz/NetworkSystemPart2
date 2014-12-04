@@ -42,11 +42,15 @@ class Network
    /**
     * Listens for incoming messages from other host and
     * once received begins sending the message up the network protocol stack
+    * assumes no further calls to preform cleanup and timeing for this
+    * assignment
     * @return char* the message to be read out by the application
     */
-    static char* my_receive();
+    std::queue<Protocol::ProtoMsg*> my_receive();
 
     static void threadPush(Protocol::ProtoMsg* new_msg);
+
+    static void deliverMsg(Protocol::ProtoMsg* new_msg);
 
   private:
 
@@ -59,14 +63,26 @@ class Network
     typedef Protocol::ProtoMsg ProtoMsg;
 
     static sem_t send_queue_sem;
+    static sem_t process_sem;
 
     static std::queue<ProtoMsg*> to_send;
+    static std::queue<ProtoMsg*> to_p;
 
     static std::queue<ProtoMsg*> rec;
 
     static pthread_mutex_t queue_lock;
 
     static pthread_mutex_t send_lock;
+
+    static pthread_mutex_t rcv_lock;
+
+    static pthread_mutex_t live_lock;
+
+    static pthread_mutex_t awk_lock;
+
+    static bool live;
+
+    static int done_awk;
 
     static pthread_barrier_t threads_ready;
 
@@ -87,7 +103,8 @@ class Network
 
     void spawn_threads();
 
-  int *get_c();
+    static void* process_send(void* arg);
+
 };
 
 #endif

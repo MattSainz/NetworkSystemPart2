@@ -7,7 +7,7 @@ using namespace std;
 int main()
 {
   cout << "Starting Network " << endl;
-  Application* app_0 = new Application(1);
+  Application* app_0 = new Application(0);
   app_0->gen_apps();
   delete app_0;
   cout << "Ending Network " << endl;

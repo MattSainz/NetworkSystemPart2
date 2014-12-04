@@ -1,9 +1,7 @@
 #ifndef PROCESS_PER_PRO_H
 #define PROCESS_PER_PRO_H
 
-#include <pthread.h>
 #include <unistd.h>
-#include <mutex>
 #include "protocol.h"
 
 class ProcessPerProtocol : public Protocol
@@ -36,6 +34,8 @@ class ProcessPerProtocol : public Protocol
     }my_fd;
 
     static pthread_mutex_t write_locks[17];
+
+    static pthread_barrier_t threads_ready;
 
     static my_fd* send_fd[];
 
